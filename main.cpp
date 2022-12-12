@@ -47,10 +47,12 @@ void CALLBACK timerProc(HWND hwnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 	GetLocalTime(&st);
 	const int currTimeMinutes = st.wHour * 60 + st.wMinute;
 
-	SetTimer(NULL, timerID,
-		(wallpapers[currWallpaperidx].second - currTimeMinutes) * 60000, &timerProc);
+	size_t nextWallpaperidx = (currWallpaperidx + 1) % wallpapers.size();
 
-	std::wcout << "next wallpaper in " << wallpapers[currWallpaperidx].second - currTimeMinutes << "m\n";
+	SetTimer(NULL, timerID,
+		(wallpapers[nextWallpaperidx].second - currTimeMinutes) * 60000, &timerProc);
+
+	std::wcout << "next wallpaper in " << wallpapers[nextWallpaperidx].second - currTimeMinutes << "m\n";
 #endif
 }
 
@@ -147,10 +149,24 @@ int main(int argc,char* argv[])
 		else
 			return currIdx;
 	};
-	currWallpaperidx = devideNconquer(wallpapers.size() / 2, 0, wallpapers.size());
+	currWallpaperidx = devideNconquer((wallpapers.size()-1) / 2, 0, wallpapers.size()-1);
+	
+	// the first wallpaper is determined based on the nearest wallpaper time, this means that sometimes
+	// the first wallpaper is actually the next one, consider this example where we have 2 wallpaper one
+	// at 01:00 the second at 02:00 and the current time is 01:45, in this case the wallpaper with 02:00 will
+	// be used because it's closer to current time even though 01:00 is supposed to be used.
+	// that's why we have this check:
+	if (wallpapers[currWallpaperidx].second > currTimeMinutes)
+	{
+		currWallpaperidx--;
+		if (currWallpaperidx == -1) currWallpaperidx = wallpapers.size()-1;
+	}
 
-//Note: since this program doesn't have a window, the id we pass is ignored, instead a different id is returned
-//      we can store that and use it to override timer length in the next call to SetTimer
+	// decrement to account for first line of timerProc
+	currWallpaperidx--;
+
+// NOTE: since this program doesn't have a window, the id we pass is ignored, instead a different id is returned
+//       we can store that and use it to override timer length in the next call to SetTimer
 #ifdef NDEBUG
 	timerID = SetTimer(NULL, 0, 0, &timerProc);
 #else
